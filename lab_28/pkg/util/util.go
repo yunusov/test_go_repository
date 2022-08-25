@@ -12,12 +12,18 @@ import (
 func GetStudentAttributes(studentStr string) (name string, age, grade int, e error) {
 	studentArr := strings.Split(studentStr, " ")
 	if len(studentArr) != 3 {
-		e = fmt.Errorf("Неправильный формат данных!")
+		e = fmt.Errorf("неправильный формат данных!%v", "")
 		return
 	}
 	name = studentArr[0]
-	age, e = getIntValue(studentArr[1])
-	grade, e = getIntValue(studentArr[2])
+	age, e = strconv.Atoi(studentArr[1])
+	if e != nil {
+		return
+	}
+	grade, e = strconv.Atoi(studentArr[2])
+	if e != nil {
+		return
+	}
 	return
 }
 
@@ -32,11 +38,5 @@ func EnterStringValue(str string) (result string, isEof bool) {
 			panic(err)
 		}
 	}
-	return
-}
-
-func getIntValue(str string) (result int, e error) {
-	result, err := strconv.Atoi(str)
-	e = err
 	return
 }
