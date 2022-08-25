@@ -16,7 +16,7 @@ func main() {
 		}
 		name, age, grade, e := util.GetStudentAttributes(studentStr)
 		if e != nil {
-			fmt.Printf("Ошибка ввода студента! Попробуйте ввести данные снова.\re = %v\r\r", e)
+			fmt.Printf("Ошибка ввода студента! Попробуйте ввести данные снова.\ne = %v\n\n", e)
 			continue
 		}
 		m.Put(student.New(name, age, grade))
