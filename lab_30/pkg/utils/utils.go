@@ -1,11 +1,9 @@
 package utils
 
 import (
-	u "lab_30/pkg/user"
-	//sr "lab_30/pkg/service"
+	"encoding/json"
 	"io"
 	"log"
-	"encoding/json"
 	"net/http"
 	"strings"
 )
@@ -21,6 +19,10 @@ func LogRequest(name string, r *http.Request) {
 
 func IsPostAndCtJson(method string, header string) bool {
 	return method == http.MethodPost && strings.ContainsAny(header, "application/json")
+}
+
+func IsDeleteAndCtJson(method string, header string) bool {
+	return method == http.MethodDelete && strings.ContainsAny(header, "application/json")
 }
 
 func GetContent(r *http.Request, w http.ResponseWriter) ([]byte, bool) {
@@ -44,18 +46,31 @@ func UnMarshalData(content []byte, dat any, w http.ResponseWriter) bool {
 	return false
 }
 
-func MarshalData(store map[string]*u.User, w http.ResponseWriter) (string, bool) {
-	response := ""
-	for _, user := range store {
-		log.Printf("user = %s", user.ToString())
-		encUser, err := json.Marshal(user)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(err.Error()))
-			log.Printf("Error: %s", err.Error())
-			return "", true
-		}
-		response += string(encUser) + "\n"
+func MarshalData(user any, w http.ResponseWriter) (string, bool) {
+	encUser, err := json.Marshal(user)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		log.Printf("Error: %s", err.Error())
+		return "", true
 	}
-	return response, false
+	return string(encUser) + "\n", false
+}
+
+func Find(a []string, x string) int {
+	for i, n := range a {
+		if x == n {
+			return i
+		}
+	}
+	return len(a)
+}
+
+func Contains(a []string, x string) bool {
+	for _, n := range a {
+		if x == n {
+			return true
+		}
+	}
+	return false
 }
