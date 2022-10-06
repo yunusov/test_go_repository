@@ -23,3 +23,7 @@ func (u *User) GetId() string {
 func NewUser(id int) *User {
 	return &User{id, "", 0, []string{}}
 }
+
+func (u *User) MakeFriend(userId string) {
+	u.Friends = append(u.Friends, userId)
+}

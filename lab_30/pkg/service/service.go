@@ -1,51 +1,48 @@
 package service
 
 import (
-	"encoding/json"
-	"io"
+	"fmt"
 	u "lab_30/pkg/user"
 	ut "lab_30/pkg/utils"
+
+	//"encoding/json"
 	"log"
 	"net/http"
-	"strings"
 )
 
-type service struct {
-	id_gen int
+type Service struct {
+	idGen int
 	store  map[string]*u.User
 }
 
-func NewService(id int) *service {
-	return &service{id, make(map[string]*u.User)}
+func NewService(id int) *Service {
+	return &Service{id, make(map[string]*u.User)}
 }
 
-func (s *service) getId() int {
-	s.id_gen++
-	return s.id_gen
+func (s *Service) getId() int {
+	s.idGen++
+	return s.idGen
 }
 
-func (s *service) Create(w http.ResponseWriter, r *http.Request) {
+func (s *Service) getUser(id string) *u.User {
+	return s.store[id]
+}
+
+func (s *Service) Create(w http.ResponseWriter, r *http.Request) {
 	/*
 		1. Сделайте обработчик создания пользователя.
 	*/
 	ut.LogRequest("Create", r)
-	if r.Method == http.MethodPost &&
-		strings.ContainsAny(r.Header.Get("Content-Type"), "application/json") {
-		content, err := io.ReadAll(r.Body)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(err.Error()))
-			log.Printf("Error: %s", err.Error())
+	if ut.IsPostAndCtJson(r.Method, r.Header.Get("Content-Type")) {
+		content, shouldReturn := ut.GetContent(r, w)
+		if shouldReturn {
 			return
 		}
 		defer r.Body.Close()
 
 		log.Printf("content = %s", string(content))
 		user := u.NewUser(s.getId())
-		if err := json.Unmarshal(content, &user); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte(err.Error()))
-			log.Printf("Error: %s", err.Error())
+		if shouldReturn1 := ut.UnMarshalData(content, user, w); shouldReturn1 {
 			return
 		}
 		userId := user.GetId()
@@ -57,20 +54,12 @@ func (s *service) Create(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusBadRequest)
 }
 
-func (s *service) GetAll(w http.ResponseWriter, r *http.Request) {
+func (s *Service) GetAll(w http.ResponseWriter, r *http.Request) {
 	ut.LogRequest("GetAll", r)
 	if r.Method == "GET" {
-		response := ""
-		for _, user := range s.store {
-			log.Printf("user = %s", user.ToString())
-			encUser, err := json.Marshal(user)
-			if err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				w.Write([]byte(err.Error()))
-				log.Printf("Error: %s", err.Error())
-				return
-			}
-			response += string(encUser) + "\n"
+		response, shouldReturn := ut.MarshalData(s.store, w)
+		if shouldReturn {
+			return
 		}
 		log.Println(response)
 		w.Header().Set("Content-Type", "application/json")
@@ -81,10 +70,35 @@ func (s *service) GetAll(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusBadRequest)
 }
 
-func (s *service) MakeFriends(w http.ResponseWriter, r *http.Request) {
+func (s *Service) MakeFriends(w http.ResponseWriter, r *http.Request) {
 	/*
 		2. Сделайте обработчик, который делает друзей из двух пользователей.
 	*/
 	ut.LogRequest("MakeFriends", r)
+	if ut.IsPostAndCtJson(r.Method, r.Header.Get("Content-Type")) {
+		content, shouldReturn := ut.GetContent(r, w)
+		if shouldReturn {
+			return
+		}
+		defer r.Body.Close()
 
+		log.Printf("content = %s", string(content))
+		var dat map[string]interface{}
+		if shouldReturn1 := ut.UnMarshalData(content, &dat, w); shouldReturn1 {
+			return
+		}
+		sourceUser, targetUser := s.makeFriend(dat)
+		w.WriteHeader(http.StatusCreated)
+		w.Write([]byte(fmt.Sprintf("%s и %s теперь друзья", sourceUser.Name, targetUser.Name)))
+	}
+}
+
+func (s *Service) makeFriend(dat map[string]interface{}) (sourceUser *u.User, targetUser *u.User) {
+	sourceId := dat["source_id"].(string)
+	targetId := dat["target_id"].(string)
+	sourceUser = s.getUser(sourceId)
+	targetUser = s.getUser(targetId)
+	sourceUser.MakeFriend(targetId)
+	targetUser.MakeFriend(sourceId)
+	return
 }
