@@ -1,35 +1,35 @@
 package service
 
 import (
+	"encoding/json"
+	"io"
 	u "lab_30/pkg/user"
 	ut "lab_30/pkg/utils"
-	"io"
 	"log"
 	"net/http"
-	"encoding/json"
 	"strings"
 )
 
 type service struct {
-	id_gen	int
-	store	map[string]*u.User
+	id_gen int
+	store  map[string]*u.User
 }
 
 func NewService(id int) *service {
 	return &service{id, make(map[string]*u.User)}
 }
 
-func (s *service) getId() int{
+func (s *service) getId() int {
 	s.id_gen++
 	return s.id_gen
 }
 
-func (s *service) Create(w http.ResponseWriter, r * http.Request) {
+func (s *service) Create(w http.ResponseWriter, r *http.Request) {
 	/*
 		1. Сделайте обработчик создания пользователя.
 	*/
 	ut.LogRequest("Create", r)
-	if r.Method == http.MethodPost && 
+	if r.Method == http.MethodPost &&
 		strings.ContainsAny(r.Header.Get("Content-Type"), "application/json") {
 		content, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -49,7 +49,7 @@ func (s *service) Create(w http.ResponseWriter, r * http.Request) {
 			return
 		}
 		userId := user.GetId()
-		s.store[userId] = user	
+		s.store[userId] = user
 		w.WriteHeader(http.StatusCreated)
 		w.Write([]byte(userId))
 		return
@@ -57,7 +57,7 @@ func (s *service) Create(w http.ResponseWriter, r * http.Request) {
 	w.WriteHeader(http.StatusBadRequest)
 }
 
-func (s *service) GetAll(w http.ResponseWriter, r * http.Request) {
+func (s *service) GetAll(w http.ResponseWriter, r *http.Request) {
 	ut.LogRequest("GetAll", r)
 	if r.Method == "GET" {
 		response := ""
@@ -81,12 +81,10 @@ func (s *service) GetAll(w http.ResponseWriter, r * http.Request) {
 	w.WriteHeader(http.StatusBadRequest)
 }
 
-func (s *service) MakeFriends(w http.ResponseWriter, r * http.Request) {
+func (s *service) MakeFriends(w http.ResponseWriter, r *http.Request) {
 	/*
 		2. Сделайте обработчик, который делает друзей из двух пользователей.
 	*/
 	ut.LogRequest("MakeFriends", r)
-
-	
 
 }

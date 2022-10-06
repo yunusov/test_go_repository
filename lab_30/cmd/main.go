@@ -1,10 +1,10 @@
 package main
 
 import (
-	"log"
-	"net/http"
 	s "lab_30/pkg/service"
 	u "lab_30/pkg/utils"
+	"log"
+	"net/http"
 )
 
 func main() {
