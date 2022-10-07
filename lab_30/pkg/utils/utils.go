@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"github.com/gorilla/mux"
 )
 
 func Hello(w http.ResponseWriter, r *http.Request) {
@@ -17,12 +18,8 @@ func LogRequest(name string, r *http.Request) {
 		name, r.Method, r.Body, r.Header.Get("Content-Type"))
 }
 
-func IsPostAndCtJson(method string, header string) bool {
-	return method == http.MethodPost && strings.ContainsAny(header, "application/json")
-}
-
-func IsDeleteAndCtJson(method string, header string) bool {
-	return method == http.MethodDelete && strings.ContainsAny(header, "application/json")
+func IsCtJson(header string) bool {
+	return strings.ContainsAny(header, "application/json")
 }
 
 func GetContent(r *http.Request, w http.ResponseWriter) ([]byte, bool) {
@@ -73,4 +70,10 @@ func Contains(a []string, x string) bool {
 		}
 	}
 	return false
+}
+
+func GetRequestParam(r *http.Request, paramName string) string {
+	params := mux.Vars(r)
+	userId := params[paramName]
+	return userId
 }

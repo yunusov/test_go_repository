@@ -9,12 +9,12 @@ import (
 type User struct {
 	id      int
 	Name    string   `json:"name"`
-	Age     int      `json:"age"`
+	Age     string   `json:"age"`
 	Friends []string `json:"friends"`
 }
 
 func (u *User) ToString() string {
-	return fmt.Sprintf("ID = %d, Name = %s, Age = %d, friends = %s\n", u.id,
+	return fmt.Sprintf("ID = %d, Name = %s, Age = %s, friends = %s\n", u.id,
 		u.Name, u.Age, u.Friends)
 }
 
@@ -31,7 +31,7 @@ func (u *User) GetFriendIds() []string {
 }
 
 func NewUser(id int) *User {
-	return &User{id, "", 0, []string{}}
+	return &User{id, "", "", []string{}}
 }
 
 func (u *User) AddFriend(userId string) error {
@@ -47,4 +47,8 @@ func (u *User) UnFriend(userId string) {
 	u.Friends[i] = u.Friends[len(u.Friends)-1]
 	u.Friends[len(u.Friends)-1] = ""
 	u.Friends = u.Friends[:len(u.Friends)-1]
+}
+
+func (u *User) UpdateAge(newAge string) {
+	u.Age = newAge
 }
