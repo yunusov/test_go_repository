@@ -9,10 +9,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func Hello(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Hello"))
-}
-
 func LogRequest(name string, r *http.Request) {
 	log.Printf("%s method = %v, body = %v, ct = %s\n",
 		name, r.Method, r.Body, r.Header.Get("Content-Type"))
@@ -54,26 +50,22 @@ func MarshalData(user any, w http.ResponseWriter) (string, bool) {
 	return string(encUser) + "\n", false
 }
 
-func Find(a []string, x string) int {
-	for i, n := range a {
-		if x == n {
-			return i
-		}
-	}
-	return len(a)
-}
-
-func Contains(a []string, x string) bool {
-	for _, n := range a {
-		if x == n {
-			return true
-		}
-	}
-	return false
-}
-
 func GetRequestParam(r *http.Request, paramName string) string {
 	params := mux.Vars(r)
 	userId := params[paramName]
 	return userId
+}
+
+func DecodeData(r *http.Request, w http.ResponseWriter) (map[string]interface{}, bool) {
+	content, shouldReturn := GetContent(r, w)
+	if shouldReturn {
+		return nil, true
+	}
+
+	log.Printf("content = %s", string(content))
+	var dat map[string]interface{}
+	if shouldReturn1 := UnMarshalData(content, &dat, w); shouldReturn1 {
+		return nil, true
+	}
+	return dat, false
 }

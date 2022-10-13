@@ -6,6 +6,7 @@ import (
 	ut "lab_30/pkg/utils"
 	"log"
 	"net/http"
+	"strconv"
 )
 
 type Service struct {
@@ -17,9 +18,9 @@ func NewService(id int) *Service {
 	return &Service{id, make(map[string]*u.User)}
 }
 
-func (s *Service) getId() int {
+func (s *Service) getId() string {
 	s.idGen++
-	return s.idGen
+	return strconv.Itoa(s.idGen)
 }
 
 func (s *Service) getUser(id string) (*u.User, error) {
@@ -44,16 +45,17 @@ func (s *Service) Create(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 
 		log.Printf("content = %s", string(content))
-		user := u.NewUser(s.getId())
+		userIdStr := s.getId()
+		userId, _ := strconv.Atoi(userIdStr)
+		user := u.NewUser(userId)
 		if shouldReturn1 := ut.UnMarshalData(content, user, w); shouldReturn1 {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		userId := user.GetId()
-		user.Name += userId
-		s.store[userId] = user
+		user.Name += userIdStr
+		s.store[userIdStr] = user
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte(userId))
+		w.Write([]byte(userIdStr))
 		return
 	}
 	w.WriteHeader(http.StatusBadRequest)
@@ -63,6 +65,7 @@ func (s *Service) GetAll(w http.ResponseWriter, r *http.Request) {
 	ut.LogRequest("GetAll", r)
 	response := ""
 	for _, user := range s.store {
+		user.RefreshFriends()
 		log.Printf("user = %s", user.ToString())
 		resp, shouldReturn := ut.MarshalData(user, w)
 		if shouldReturn {
@@ -85,7 +88,7 @@ func (s *Service) MakeFriends(w http.ResponseWriter, r *http.Request) {
 	*/
 	ut.LogRequest("MakeFriends", r)
 	if ut.IsCtJson(r.Header.Get("Content-Type")) {
-		dat, shouldReturn1 := s.unMarshalData(r, w)
+		dat, shouldReturn1 := ut.DecodeData(r, w)
 		if shouldReturn1 {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -102,21 +105,6 @@ func (s *Service) MakeFriends(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusBadRequest)
 }
 
-func (*Service) unMarshalData(r *http.Request, w http.ResponseWriter) (map[string]interface{}, bool) {
-	content, shouldReturn := ut.GetContent(r, w)
-	if shouldReturn {
-		return nil, true
-	}
-	defer r.Body.Close()
-
-	log.Printf("content = %s", string(content))
-	var dat map[string]interface{}
-	if shouldReturn1 := ut.UnMarshalData(content, &dat, w); shouldReturn1 {
-		return nil, true
-	}
-	return dat, false
-}
-
 func (s *Service) makeFriend(dat map[string]interface{}) (*u.User, *u.User, error) {
 	sourceId := dat["source_id"].(string)
 	targetId := dat["target_id"].(string)
@@ -128,15 +116,15 @@ func (s *Service) makeFriend(dat map[string]interface{}) (*u.User, *u.User, erro
 	if err != nil {
 		return sourceUser, targetUser, err
 	}
-	if sourceUser != nil && targetUser != nil && sourceId != targetId {
-		if err := sourceUser.AddFriend(targetId); err != nil {
-			return sourceUser, targetUser, err
-		}
-		if err := targetUser.AddFriend(sourceId); err != nil {
-			return sourceUser, targetUser, err
-		}
+	if sourceId == targetId {
+		return sourceUser, targetUser, fmt.Errorf("incorrect friends %d", 1)
 	} else {
-		return sourceUser, targetUser, fmt.Errorf("unexisted users %d", 1)
+		if err := sourceUser.AddFriend(targetUser); err != nil {
+			return sourceUser, targetUser, err
+		}
+		if err := targetUser.AddFriend(sourceUser); err != nil {
+			return sourceUser, targetUser, err
+		}
 	}
 	return sourceUser, targetUser, nil
 }
@@ -147,7 +135,7 @@ func (s *Service) Delete(w http.ResponseWriter, r *http.Request) {
 	*/
 	ut.LogRequest("Delete", r)
 	if ut.IsCtJson(r.Header.Get("Content-Type")) {
-		dat, shouldReturn := s.unMarshalData(r, w)
+		dat, shouldReturn := ut.DecodeData(r, w)
 		if shouldReturn {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -197,6 +185,8 @@ func (s *Service) GetFriendsById(w http.ResponseWriter, r *http.Request) {
 		 4. Сделайте обработчик, который возвращает всех друзей пользователя.
 	*/
 	ut.LogRequest("GetFriendsById", r)
+	defer r.Body.Close()
+	
 	userId := ut.GetRequestParam(r, "userid")
 	user, err := s.getUser(userId)
 	if err != nil {
@@ -212,6 +202,7 @@ func (s *Service) GetFriendsById(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+		friend.RefreshFriends()
 		resp, shouldReturn := ut.MarshalData(friend, w)
 		if shouldReturn {
 			w.WriteHeader(http.StatusBadRequest)
@@ -232,7 +223,7 @@ func (s *Service) UpdateAgeById(w http.ResponseWriter, r *http.Request) {
 	*/
 	ut.LogRequest("UpdateAgeById", r)
 	if ut.IsCtJson(r.Header.Get("Content-Type")) {
-		dat, shouldReturn := s.unMarshalData(r, w)
+		dat, shouldReturn := ut.DecodeData(r, w)
 		if shouldReturn {
 			w.WriteHeader(http.StatusBadRequest)
 			return
