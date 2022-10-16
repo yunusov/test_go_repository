@@ -1,27 +1,42 @@
 package main
 
 import (
+	"flag"
 	s "lab_30/pkg/service"
 	"log"
 	"net/http"
-	"github.com/gorilla/mux" //go get github.com/gorilla/mux
+	"github.com/gorilla/mux"
 )
 
-func main() {
-	srv := s.NewService(0)
-	router := mux.NewRouter()
-	router.HandleFunc("/get", srv.GetAll).Methods(http.MethodGet) 
-	router.HandleFunc("/create", srv.Create).Methods(http.MethodPost)
-	router.HandleFunc("/", hello)
-	router.HandleFunc("/make_friends", srv.MakeFriends).Methods(http.MethodPost)
-	router.HandleFunc("/user", srv.Delete).Methods(http.MethodDelete)
-	router.HandleFunc("/friends/{userid:[\\d]+}", srv.GetFriendsById).Methods(http.MethodGet)
-	router.HandleFunc("/{userid:[\\d]+}", srv.UpdateAgeById).Methods(http.MethodPut)
+// go run main.go -port "<port_number>"
 
-	http.Handle("/", router)
-	log.Println("Запуск веб-сервера на http://127.0.0.1:8080")
-	err := http.ListenAndServe(":8080", nil)
+func main() {
+	port := getParamsPort()
+	service := s.NewService(0)
+	router := mux.NewRouter()
+
+	makeHandleFuncs(router, service)
+
+	log.Printf("Запуск веб-сервера на http://127.0.0.1:%v\n", port)
+	err := http.ListenAndServe(":" + port, nil)
 	log.Fatal(err)
+}
+
+func makeHandleFuncs(router *mux.Router, service *s.Service) {
+	router.HandleFunc("/get", service.GetAll).Methods(http.MethodGet)
+	router.HandleFunc("/create", service.Create).Methods(http.MethodPost)
+	router.HandleFunc("/", hello)
+	router.HandleFunc("/make_friends", service.MakeFriends).Methods(http.MethodPost)
+	router.HandleFunc("/user", service.Delete).Methods(http.MethodDelete)
+	router.HandleFunc("/friends/{userid:[\\d]+}", service.GetFriendsById).Methods(http.MethodGet)
+	router.HandleFunc("/{userid:[\\d]+}", service.UpdateAgeById).Methods(http.MethodPut)
+	http.Handle("/", router)
+}
+
+func getParamsPort() (port string) {
+	flag.StringVar(&port, "port", "", "set port")
+	flag.Parse()
+	return port
 }
 
 func hello(w http.ResponseWriter, r *http.Request) {
