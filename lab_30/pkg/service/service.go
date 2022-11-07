@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
 	u "lab_30/pkg/user"
 	ut "lab_30/pkg/utils"
@@ -10,8 +11,8 @@ import (
 )
 
 type Service struct {
-	idGen int
-	store map[string]*u.User
+	IdGen int                `json:"id"`
+	Store map[string]*u.User `json:"store"`
 }
 
 func NewService(id int) *Service {
@@ -19,16 +20,62 @@ func NewService(id int) *Service {
 }
 
 func (s *Service) getId() string {
-	s.idGen++
-	return strconv.Itoa(s.idGen)
+	s.IdGen++
+	return strconv.Itoa(s.IdGen)
+}
+
+func (s *Service) loadStore() {
+	content := ut.ReadFromFile()
+	log.Println("service.loadStore content =", string(content))
+	if len(content) == 0 {
+		return
+	}
+	serv := []Service{}
+	if err := json.Unmarshal(content, &serv); err != nil {
+		log.Printf("service.loadStore: Error: %s", err.Error())
+		return
+	}
+	for _, v := range serv {
+		s.IdGen = v.IdGen
+		s.Store = v.Store
+		s.refreshFriends()
+	}
+}
+
+func (s *Service) saveStore() {
+	serv, err := json.Marshal(&s)
+	if err != nil {
+		log.Printf("service.saveStore: Error: %s", err.Error())
+	}
+	log.Println("service.saveStore: ", string(serv))
+	ut.WriteToFile("[" + string(serv) + "]")
+}
+
+func (s *Service) saveUser(user *u.User) {
+	log.Println("service.saveUser user =", user.ToString())
+	s.Store[user.GetId()] = user
+	s.saveStore()
 }
 
 func (s *Service) getUser(id string) (*u.User, error) {
-	user := s.store[id]
+	user := s.Store[id]
 	if user == nil {
 		return user, fmt.Errorf("user is nil")
 	}
 	return user, nil
+}
+
+func (s *Service) refreshFriends() {
+	for _, user := range s.Store {
+		user.InitFriends()
+		for _, friendId := range user.GetStrFriends() {
+			friend, err := s.getUser(friendId)
+			if err != nil {
+				log.Println("service refreshFriends: Error ", err.Error())
+			}
+			user.AddFriend(friend)
+		}
+	}
 }
 
 func (s *Service) Create(w http.ResponseWriter, r *http.Request) {
@@ -37,6 +84,7 @@ func (s *Service) Create(w http.ResponseWriter, r *http.Request) {
 	*/
 	ut.LogRequest("Create", r)
 	if ut.IsCtJson(r.Header.Get("Content-Type")) {
+		s.loadStore()
 		content, shouldReturn := ut.GetContent(r, w)
 		if shouldReturn {
 			w.WriteHeader(http.StatusBadRequest)
@@ -52,8 +100,7 @@ func (s *Service) Create(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		user.Name += userIdStr
-		s.store[userIdStr] = user
+		s.saveUser(user)
 		w.WriteHeader(http.StatusCreated)
 		w.Write([]byte(userIdStr))
 		return
@@ -64,8 +111,9 @@ func (s *Service) Create(w http.ResponseWriter, r *http.Request) {
 func (s *Service) GetAll(w http.ResponseWriter, r *http.Request) {
 	ut.LogRequest("GetAll", r)
 	response := ""
-	for _, user := range s.store {
-		user.RefreshFriends()
+	s.loadStore()
+	for _, user := range s.Store {
+		user.RefreshStrFriends()
 		log.Printf("user = %s", user.ToString())
 		resp, shouldReturn := ut.MarshalData(user, w)
 		if shouldReturn {
@@ -76,7 +124,7 @@ func (s *Service) GetAll(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	log.Println(response)
+	log.Println("response =", response)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(response))
@@ -101,6 +149,7 @@ func (s *Service) MakeFriends(w http.ResponseWriter, r *http.Request) {
 		}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(fmt.Sprintf("%s и %s теперь друзья", sourceUser.Name, targetUser.Name)))
+		return
 	}
 	w.WriteHeader(http.StatusBadRequest)
 }
@@ -117,15 +166,17 @@ func (s *Service) makeFriend(dat map[string]interface{}) (*u.User, *u.User, erro
 		return sourceUser, targetUser, err
 	}
 	if sourceId == targetId {
-		return sourceUser, targetUser, fmt.Errorf("incorrect friends %d", 1)
+		return sourceUser, targetUser, fmt.Errorf("service.makeFriend: incorrect friends %d", 1)
 	} else {
-		if err := sourceUser.AddFriend(targetUser); err != nil {
+		if targetUser, err := sourceUser.AddFriend(targetUser); err != nil {
 			return sourceUser, targetUser, err
 		}
-		if err := targetUser.AddFriend(sourceUser); err != nil {
+		if sourceUser, err := targetUser.AddFriend(sourceUser); err != nil {
 			return sourceUser, targetUser, err
 		}
 	}
+	s.saveUser(sourceUser)
+	s.saveUser(targetUser)
 	return sourceUser, targetUser, nil
 }
 
@@ -149,17 +200,20 @@ func (s *Service) Delete(w http.ResponseWriter, r *http.Request) {
 		}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(userName))
+		return
 	}
 	w.WriteHeader(http.StatusBadRequest)
 }
 
 func (s *Service) deleteUser(targetId string) (string, error) {
+	s.loadStore()
 	user, err := s.getUser(targetId)
 	if err != nil {
 		return "", err
 	}
 	s.unFriend(targetId)
-	delete(s.store, targetId)
+	delete(s.Store, targetId)
+	s.saveStore()
 	return user.GetName(), nil
 }
 
@@ -182,11 +236,12 @@ func (s *Service) unFriend(userId string) error {
 
 func (s *Service) GetFriendsById(w http.ResponseWriter, r *http.Request) {
 	/*
-		 4. Сделайте обработчик, который возвращает всех друзей пользователя.
+	 4. Сделайте обработчик, который возвращает всех друзей пользователя.
 	*/
 	ut.LogRequest("GetFriendsById", r)
+	s.loadStore()
 	defer r.Body.Close()
-	
+
 	userId := ut.GetRequestParam(r, "userid")
 	user, err := s.getUser(userId)
 	if err != nil {
@@ -202,7 +257,7 @@ func (s *Service) GetFriendsById(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		friend.RefreshFriends()
+		friend.RefreshStrFriends()
 		resp, shouldReturn := ut.MarshalData(friend, w)
 		if shouldReturn {
 			w.WriteHeader(http.StatusBadRequest)
@@ -215,14 +270,16 @@ func (s *Service) GetFriendsById(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(response))
+	s.saveStore()
 }
 
 func (s *Service) UpdateAgeById(w http.ResponseWriter, r *http.Request) {
 	/*
-		 5. Сделайте обработчик, который обновляет возраст пользователя.
+	 5. Сделайте обработчик, который обновляет возраст пользователя.
 	*/
 	ut.LogRequest("UpdateAgeById", r)
 	if ut.IsCtJson(r.Header.Get("Content-Type")) {
+		s.loadStore()
 		dat, shouldReturn := ut.DecodeData(r, w)
 		if shouldReturn {
 			w.WriteHeader(http.StatusBadRequest)
@@ -237,11 +294,13 @@ func (s *Service) UpdateAgeById(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		user.UpdateAge(dat["new age"].(string))
+		s.saveStore()
 		response := "возраст пользователя успешно обновлён"
 		log.Println(response)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(response))
+		return
 	}
 	w.WriteHeader(http.StatusBadRequest)
 }

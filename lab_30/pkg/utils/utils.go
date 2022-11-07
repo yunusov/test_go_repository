@@ -2,11 +2,19 @@ package utils
 
 import (
 	"encoding/json"
+	"github.com/gorilla/mux"
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
-	"github.com/gorilla/mux"
+	"bytes"
+	"sort"
+)
+
+const (
+	fileName = "storeJson.txt"
+	storeJsonCannotFindErrMsg = "open storeJson.txt: The system cannot find the file specified."
 )
 
 func LogRequest(name string, r *http.Request) {
@@ -23,7 +31,7 @@ func GetContent(r *http.Request, w http.ResponseWriter) ([]byte, bool) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
-		log.Printf("Error: %s", err.Error())
+		log.Printf("utils.GetContent Error: %s", err.Error())
 		return nil, true
 	}
 	return content, false
@@ -33,7 +41,7 @@ func UnMarshalData(content []byte, dat any, w http.ResponseWriter) bool {
 	if err := json.Unmarshal(content, dat); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
-		log.Printf("Error: %s", err.Error())
+		log.Printf("utils.UnMarshalData Error: %s", err.Error())
 		return true
 	}
 	return false
@@ -44,7 +52,7 @@ func MarshalData(user any, w http.ResponseWriter) (string, bool) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
-		log.Printf("Error: %s", err.Error())
+		log.Printf("utils.MarshalData Error: %s", err.Error())
 		return "", true
 	}
 	return string(encUser) + "\n", false
@@ -68,4 +76,32 @@ func DecodeData(r *http.Request, w http.ResponseWriter) (map[string]interface{},
 		return nil, true
 	}
 	return dat, false
+}
+
+func ReadFromFile() (result []byte) {
+	result, err := os.ReadFile(fileName)
+	if len(result) == 0 {
+		log.Printf("File %v is empty!", fileName)
+		return nil
+	} else if err != nil {
+		if strings.Contains(err.Error(), storeJsonCannotFindErrMsg) {
+			log.Printf("utils.ReadFromFile: File %v is empty!", fileName)
+			return nil
+		}
+		panic(err)
+	}
+	return result
+}
+
+func WriteToFile(str string) {
+	var b bytes.Buffer
+	b.WriteString(str)
+	if err := os.WriteFile(fileName, b.Bytes(), 0666); err != nil {
+		log.Println("utils.WriteToFile: Error in file write: ", err)
+	}
+}
+
+func SliceContains(s []string, searchterm string) bool {
+    i := sort.SearchStrings(s, searchterm)
+    return i < len(s) && s[i] == searchterm
 }
