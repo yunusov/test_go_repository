@@ -31,6 +31,10 @@ func (u *User) GetName() string {
 	return u.Name
 }
 
+func (u *User) SetName(name string) {
+	u.Name = name
+}
+
 func (u *User) GetStrFriends() []string {
 	if u.Friends == nil {
 		u.Friends = []string{}
@@ -93,4 +97,8 @@ func (u *User) UnFriend(userId string) {
 
 func (u *User) UpdateAge(newAge string) {
 	u.Age = newAge
+}
+
+func (u *User) GetAge() string {
+	return u.Age
 }

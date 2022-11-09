@@ -1,20 +1,20 @@
 package utils
 
 import (
+	"bytes"
 	"encoding/json"
-	"github.com/gorilla/mux"
 	"io"
 	"log"
 	"net/http"
 	"os"
-	"strings"
-	"bytes"
 	"sort"
+	"strings"
+
+	"github.com/gorilla/mux"
 )
 
 const (
-	fileName = "storeJson.txt"
-	storeJsonCannotFindErrMsg = "open storeJson.txt: The system cannot find the file specified."
+	cannotFindFileErrMsg = "The system cannot find the file specified."
 )
 
 func LogRequest(name string, r *http.Request) {
@@ -26,36 +26,36 @@ func IsCtJson(header string) bool {
 	return strings.ContainsAny(header, "application/json")
 }
 
-func GetContent(r *http.Request, w http.ResponseWriter) ([]byte, bool) {
+func GetContent(r *http.Request, w http.ResponseWriter) ([]byte, error) {
 	content, err := io.ReadAll(r.Body)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
 		log.Printf("utils.GetContent Error: %s", err.Error())
-		return nil, true
+		return nil, err
 	}
-	return content, false
+	return content, nil
 }
 
-func UnMarshalData(content []byte, dat any, w http.ResponseWriter) bool {
+func UnMarshalData(content []byte, dat any, w http.ResponseWriter) error {
 	if err := json.Unmarshal(content, dat); err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
 		log.Printf("utils.UnMarshalData Error: %s", err.Error())
-		return true
+		return err
 	}
-	return false
+	return nil
 }
 
-func MarshalData(user any, w http.ResponseWriter) (string, bool) {
+func MarshalData(user any, w http.ResponseWriter) (string, error) {
 	encUser, err := json.Marshal(user)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(err.Error()))
 		log.Printf("utils.MarshalData Error: %s", err.Error())
-		return "", true
+		return "", err
 	}
-	return string(encUser) + "\n", false
+	return string(encUser) + "\n", nil
 }
 
 func GetRequestParam(r *http.Request, paramName string) string {
@@ -64,27 +64,26 @@ func GetRequestParam(r *http.Request, paramName string) string {
 	return userId
 }
 
-func DecodeData(r *http.Request, w http.ResponseWriter) (map[string]interface{}, bool) {
-	content, shouldReturn := GetContent(r, w)
-	if shouldReturn {
-		return nil, true
+func DecodeData(r *http.Request, w http.ResponseWriter) (map[string]interface{}, error) {
+	content, err := GetContent(r, w)
+	if err != nil {
+		return nil, err
 	}
-
 	log.Printf("content = %s", string(content))
-	var dat map[string]interface{}
-	if shouldReturn1 := UnMarshalData(content, &dat, w); shouldReturn1 {
-		return nil, true
+	dat := make(map[string]interface{})
+	if err := UnMarshalData(content, &dat, w); err != nil {
+		return nil, err
 	}
-	return dat, false
+	return dat, nil
 }
 
-func ReadFromFile() (result []byte) {
+func ReadFromFile(fileName string) (result []byte) {
 	result, err := os.ReadFile(fileName)
 	if len(result) == 0 {
 		log.Printf("File %v is empty!", fileName)
 		return nil
 	} else if err != nil {
-		if strings.Contains(err.Error(), storeJsonCannotFindErrMsg) {
+		if strings.Contains(err.Error(), cannotFindFileErrMsg) {
 			log.Printf("utils.ReadFromFile: File %v is empty!", fileName)
 			return nil
 		}
@@ -93,7 +92,7 @@ func ReadFromFile() (result []byte) {
 	return result
 }
 
-func WriteToFile(str string) {
+func WriteToFile(str string, fileName string) {
 	var b bytes.Buffer
 	b.WriteString(str)
 	if err := os.WriteFile(fileName, b.Bytes(), 0666); err != nil {
@@ -102,6 +101,6 @@ func WriteToFile(str string) {
 }
 
 func SliceContains(s []string, searchterm string) bool {
-    i := sort.SearchStrings(s, searchterm)
-    return i < len(s) && s[i] == searchterm
+	i := sort.SearchStrings(s, searchterm)
+	return i < len(s) && s[i] == searchterm
 }
