@@ -44,12 +44,12 @@ func gs() {
 		}
 	}()
 	
-	go initGracefulShutdown(stop, wg)
+	go initGracefulShutdown(stop, &wg)
 	wg.Wait()
 	fmt.Println("End")
 }
 
-func initGracefulShutdown(cancelFunc context.CancelFunc, wg sync.WaitGroup) {
+func initGracefulShutdown(cancelFunc context.CancelFunc, wg *sync.WaitGroup) {
 	defer wg.Done()
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)

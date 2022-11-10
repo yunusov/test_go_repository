@@ -1,17 +1,17 @@
 package main
 
 import (
+	"context"
 	"flag"
-	"github.com/gorilla/mux"
 	s "lab_30/pkg/service"
 	"log"
 	"net/http"
-	"strconv"
-	"strings"
-)
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 
-const (
-	onlyOnePortPermittedErrMsg = "Only one usage of each socket address (protocol/network address/port) is normally permitted."
+	"github.com/gorilla/mux"
 )
 
 // go run main.go -port "<port_number>"
@@ -21,31 +21,38 @@ func main() {
 	port := getParamsPort()
 	service := s.NewService(0)
 	router := mux.NewRouter()
-
 	makeHandleFuncs(router, service)
-	startWebService(port)
-}
 
-func startWebService(port string) {
-	for {
-		log.Printf("Запуск веб-сервера на http://127.0.0.1:%v\n", port)
-		err := http.ListenAndServe(":"+port, nil)
-		if strings.Contains(err.Error(), onlyOnePortPermittedErrMsg) {
-			log.Printf("Port %v is busy. Trying to use next port.", port)
-			port = getNextPort(port)
-			continue
+	srv := &http.Server{
+		Addr:    port,
+		Handler: router,
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		log.Printf("Запуск веб-сервера на %v\n", srv.Addr)
+		err := srv.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
+			log.Fatalf("listen: %s\n", err)
 		}
-		log.Fatal(err)
-	}
+	}()
+	<-ctx.Done()
+	go initGracefulShutdown(stop, &wg, srv, ctx)
+	wg.Wait()
+	log.Println("Server Exited Properly")
 }
 
-func getNextPort(port string) string {
-	portInt, err := strconv.Atoi(port)
-	if err != nil {
-		log.Fatal(err)
+func initGracefulShutdown(cancelFunc context.CancelFunc, wg *sync.WaitGroup, srv *http.Server, ctx context.Context) {
+	defer wg.Done()
+	log.Println("Graceful Shutdown")
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("Server Shutdown Failed:%+v", err)
 	}
-	portInt++
-	return strconv.Itoa(portInt)
+	cancelFunc()
 }
 
 func makeHandleFuncs(router *mux.Router, service *s.Service) {
@@ -64,9 +71,9 @@ func getParamsPort() (port string) {
 	flag.Parse()
 	if port == "" {
 		port = "8080"
-		//panic("Param 'port' is absent! Service cannot start!")
+		//log.Fatal("Param 'port' is absent! Service cannot start!")
 	}
-	return port
+	return ":" + port
 }
 
 func hello(w http.ResponseWriter, r *http.Request) {
