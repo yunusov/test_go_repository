@@ -2,6 +2,7 @@ package sms
 
 import (
 	"fmt"
+	"go_diploma/pkg/config"
 	"go_diploma/pkg/utils"
 	"os"
 	"strconv"
@@ -9,7 +10,7 @@ import (
 )
 
 type SmsData struct {
-	Сountry      string
+	Country      string
 	Bandwidth    string
 	ResponseTime string
 	Provider     string
@@ -21,22 +22,21 @@ func buildStruct(fields []string) *SmsData {
 
 func (sms *SmsData) ToString() string {
 	return fmt.Sprintf("Country = %s, Bandwidth = %s, ResponseTime = %s, Provider = %s",
-		sms.Сountry, sms.Bandwidth, sms.ResponseTime, sms.Provider)
+		sms.Country, sms.Bandwidth, sms.ResponseTime, sms.Provider)
 }
 
-func LoadData(conf utils.Config) []*SmsData {
-	smsDataBytes, err := os.ReadFile(conf.EmuPath + conf.SmsDataFile)
+func LoadData(conf *config.Config) []*SmsData {
+	smsDataBytes, err := os.ReadFile(conf.GetEmuPath() + conf.GetSmsDataFile())
 	if err != nil {
 		panic(err)
 	}
 	if len(smsDataBytes) == 0 {
 		fmt.Println("SMS data file is empty!")
 	}
-	smsDataStr := string(smsDataBytes)
-	return parceSmsData(smsDataStr, conf)
+	return parceSmsData(string(smsDataBytes), conf)
 }
 
-func parceSmsData(smsDataStr string, conf utils.Config) (result []*SmsData) {
+func parceSmsData(smsDataStr string, conf *config.Config) (result []*SmsData) {
 	smsDataRows := strings.Split(smsDataStr, "\n")
 	for i, row := range smsDataRows {
 		fmt.Println(i, row)
@@ -50,7 +50,7 @@ func parceSmsData(smsDataStr string, conf utils.Config) (result []*SmsData) {
 	return
 }
 
-func validateRecords(fields []string, conf utils.Config) bool {
+func validateRecords(fields []string, conf *config.Config) bool {
 	if len(fields) < 4 {
 		fmt.Printf("sms.validateRecords: len < 4, fields = %v\n", fields)
 		return false
@@ -62,7 +62,7 @@ func validateRecords(fields []string, conf utils.Config) bool {
 			return false
 		}
 		if i == 0 {
-			if !utils.SliceContains(conf.CountryCodes, field) {
+			if !utils.SliceContains(conf.GetCoutryCodes(), field) {
 				fmt.Printf("sms.validateRecords: not in Country Codes, fields = %v\n", fields)
 				return false
 			}
@@ -73,7 +73,7 @@ func validateRecords(fields []string, conf utils.Config) bool {
 				return false
 			}
 		} else if i == 3 {
-			if !utils.SliceContains(conf.SmsProviders, field) {
+			if !utils.SliceContains(conf.GetSmsProviders(), field) {
 				fmt.Printf("sms.validateRecords: not in Providers, fields = %v\n", fields)
 				return false
 			}

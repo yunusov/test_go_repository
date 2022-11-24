@@ -3,6 +3,8 @@ package mms
 import (
 	"encoding/json"
 	"fmt"
+	"go_diploma/pkg/config"
+	"go_diploma/pkg/request"
 	"go_diploma/pkg/utils"
 	"net/http"
 	"strconv"
@@ -10,7 +12,7 @@ import (
 )
 
 type MmsData struct {
-	Сountry      string `json:"country"`
+	Country      string `json:"country"`
 	Provider     string `json:"provider"`
 	Bandwidth    string `json:"bandwidth"`
 	ResponseTime string `json:"response_time"`
@@ -22,10 +24,10 @@ func BuildStruct(fields []string) *MmsData {
 
 func (mms *MmsData) ToString() string {
 	return fmt.Sprintf("Country = %s, Bandwidth = %s, ResponseTime = %s, Provider = %s",
-		mms.Сountry, mms.Bandwidth, mms.ResponseTime, mms.Provider)
+		mms.Country, mms.Bandwidth, mms.ResponseTime, mms.Provider)
 }
 
-func LoadData(conf utils.Config) (result []*MmsData) {
+func LoadData(conf *config.Config) (result []*MmsData) {
 	response := sendMmsRequest(conf)
 	fmt.Println(string(response))
 	mmsData := parceResponse([]byte(response))
@@ -33,11 +35,13 @@ func LoadData(conf utils.Config) (result []*MmsData) {
 	return mmsData
 }
 
-func sendMmsRequest(conf utils.Config) (result []byte) {
-	rs := &utils.RequestStruct{UrlRequest: conf.SrvAddress + conf.MmsPage, Content: "", HttpMethod: http.MethodGet}
-	result, err := utils.SendRequest(rs)
+func sendMmsRequest(conf *config.Config) (result []byte) {
+	rs := &request.RequestStruct{UrlRequest: conf.GetMmsServerAddress(),
+		Content: "", HttpMethod: http.MethodGet}
+	result, err := rs.Send()
 	if err != nil {
-		panic(err)
+		fmt.Println("sendSupportRequest error:", err.Error())
+		return nil
 	}
 	return
 }
@@ -54,17 +58,17 @@ func parceResponse(response []byte) (result []*MmsData) {
 	return mmsData
 }
 
-func validateRecords(mmsData []*MmsData, conf utils.Config) (result []*MmsData) {
+func validateRecords(mmsData []*MmsData, conf *config.Config) (result []*MmsData) {
 	for _, record := range mmsData {
 		bandwidth := strings.Trim(record.Bandwidth, " ")
 		provider := strings.Trim(record.Provider, " ")
 		responseTime := strings.Trim(record.ResponseTime, " ")
-		country := strings.Trim(record.Сountry, " ")
+		country := strings.Trim(record.Country, " ")
 		if len(bandwidth) == 0 || len(provider) == 0 || len(responseTime) == 0 || len(country) == 0 {
 			fmt.Printf("sms.validateRecords: len == 0, fields = %v\n", record.ToString())
 			continue
 		}
-		if !utils.SliceContains(conf.CountryCodes, country) {
+		if !utils.SliceContains(conf.GetCoutryCodes(), country) {
 			fmt.Printf("mms.validateRecords: not in Country Codes, fields = %v\n", record.ToString())
 			continue
 		}
@@ -78,7 +82,7 @@ func validateRecords(mmsData []*MmsData, conf utils.Config) (result []*MmsData) 
 			fmt.Printf("sms.validateRecords: not int, fields = %v\n", record.ToString())
 			continue
 		}
-		if !utils.SliceContains(conf.SmsProviders, provider) {
+		if !utils.SliceContains(conf.GetSmsProviders(), provider) {
 			fmt.Printf("mms.validateRecords: not in Providers, fields = %v\n", record.ToString())
 			continue
 		}
