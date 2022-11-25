@@ -13,14 +13,14 @@ func LoadSettings() *config.Config {
 	if _, err := toml.DecodeFile("../settings.toml", conf); err != nil {
 		panic(err)
 	}
-	conf.LoadCoutryCodes()
-	conf.SetCoutryCodes(Sorting(conf.GetCoutryCodes()))
-	conf.SetEmailProviders(Sorting(conf.GetEmailProviders()))
-	conf.SetSmsProviders(Sorting(conf.GetSmsProviders()))
-	conf.SetVoiceProviders(Sorting(conf.GetVoiceProviders()))
 	if len(strings.Trim(conf.Emu.Path, " ")) == 0 {
-		panic("Please fulfill field EmuPath in settings.toml!")
+		panic("Please fulfill field Emu.Path in settings.toml!")
 	}
+	conf.LoadCoutryCodes()
+	conf.SetCoutryCodes(sorting(conf.GetCoutryCodes()))
+	conf.SetEmailProviders(sorting(conf.GetEmailProviders()))
+	conf.SetSmsProviders(sorting(conf.GetSmsProviders()))
+	conf.SetVoiceProviders(sorting(conf.GetVoiceProviders()))
 	return conf
 }
 
@@ -30,7 +30,7 @@ func SliceContains(s []string, searchterm string) bool {
 	return i < len(s) && s[i] == searchterm
 }
 
-func Sorting(arr []string) []string {
+func sorting(arr []string) []string {
 	bsSize := len(arr)
 	for i := 1; i < bsSize; i++ {
 		x := arr[i]

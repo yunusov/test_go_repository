@@ -25,15 +25,15 @@ func (sms *SmsData) ToString() string {
 		sms.Country, sms.Bandwidth, sms.ResponseTime, sms.Provider)
 }
 
-func LoadData(conf *config.Config) []*SmsData {
+func LoadData(conf *config.Config) ([]*SmsData, error) {
 	smsDataBytes, err := os.ReadFile(conf.GetEmuPath() + conf.GetSmsDataFile())
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	if len(smsDataBytes) == 0 {
-		fmt.Println("SMS data file is empty!")
+		return nil, fmt.Errorf("SMS data file is empty!")
 	}
-	return parceSmsData(string(smsDataBytes), conf)
+	return parceSmsData(string(smsDataBytes), conf), nil
 }
 
 func parceSmsData(smsDataStr string, conf *config.Config) (result []*SmsData) {

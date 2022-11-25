@@ -27,35 +27,41 @@ func (mms *MmsData) ToString() string {
 		mms.Country, mms.Bandwidth, mms.ResponseTime, mms.Provider)
 }
 
-func LoadData(conf *config.Config) (result []*MmsData) {
-	response := sendMmsRequest(conf)
+func LoadData(conf *config.Config) ([]*MmsData, error) {
+	response, err := sendMmsRequest(conf)
+	if err != nil {
+		return nil, err
+	}
 	fmt.Println(string(response))
-	mmsData := parceResponse([]byte(response))
+	mmsData, err := parceResponse([]byte(response))
+	if err != nil {
+		return nil, err
+	}
 	mmsData = validateRecords(mmsData, conf)
-	return mmsData
+	return mmsData, nil
 }
 
-func sendMmsRequest(conf *config.Config) (result []byte) {
+func sendMmsRequest(conf *config.Config) ([]byte, error) {
 	rs := &request.RequestStruct{UrlRequest: conf.GetMmsServerAddress(),
 		Content: "", HttpMethod: http.MethodGet}
 	result, err := rs.Send()
 	if err != nil {
 		fmt.Println("sendSupportRequest error:", err.Error())
-		return nil
+		return nil, err
 	}
-	return
+	return result, nil
 }
 
-func parceResponse(response []byte) (result []*MmsData) {
+func parceResponse(response []byte) ([]*MmsData, error) {
 	if len(response) == 0 {
-		return
+		return nil, fmt.Errorf("Response zero length")
 	}
 	mmsData := []*MmsData{}
 	if err := json.Unmarshal(response, &mmsData); err != nil {
 		fmt.Printf("service.loadStore: Error: %s", err.Error())
-		return
+		return nil, err
 	}
-	return mmsData
+	return mmsData, nil
 }
 
 func validateRecords(mmsData []*MmsData, conf *config.Config) (result []*MmsData) {

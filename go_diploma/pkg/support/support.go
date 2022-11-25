@@ -18,31 +18,34 @@ func (sup *SupportData) ToString() string {
 		sup.Topic, sup.ActiveTickets)
 }
 
-func LoadData(conf *config.Config) (result []*SupportData) {
-	response := sendSupportRequest(conf)
+func LoadData(conf *config.Config) ([]*SupportData, error) {
+	response, err := sendSupportRequest(conf)
+	if err != nil {
+		return nil, err
+	}
 	fmt.Println(string(response))
 	return parceResponse([]byte(response))
 }
 
-func sendSupportRequest(conf *config.Config) (result []byte) {
+func sendSupportRequest(conf *config.Config) ([]byte, error) {
 	rs := &request.RequestStruct{UrlRequest: conf.GetSupportServerAddress(),
 		Content: "", HttpMethod: http.MethodGet}
 	result, err := rs.Send()
 	if err != nil {
 		fmt.Println("sendSupportRequest error:", err.Error())
-		return nil
+		return nil, err
 	}
-	return
+	return result, nil
 }
 
-func parceResponse(response []byte) (result []*SupportData) {
+func parceResponse(response []byte) ([]*SupportData, error) {
 	if len(response) == 0 {
-		return
+		return nil, fmt.Errorf("Zero length response")
 	}
 	mmsData := []*SupportData{}
 	if err := json.Unmarshal(response, &mmsData); err != nil {
 		fmt.Printf("service.loadStore: Error: %s", err.Error())
-		return
+		return nil, err
 	}
-	return mmsData
+	return mmsData, nil
 }

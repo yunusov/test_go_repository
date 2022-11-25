@@ -27,15 +27,15 @@ func (vc *VoiceCallData) ToString() string {
 		vc.TtfbClearence, vc.CallDuration, vc.UnknowValue)
 }
 
-func LoadData(conf *config.Config) []*VoiceCallData {
+func LoadData(conf *config.Config) ([]*VoiceCallData, error) {
 	vcBytes, err := os.ReadFile(conf.GetEmuPath() + conf.GetVoiceDataFile())
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	if len(vcBytes) == 0 {
-		fmt.Println("VoiceCall data file is empty!")
+		return nil, fmt.Errorf("VoiceCall data file is empty")
 	}
-	return parceVcData(string(vcBytes), conf)
+	return parceVcData(string(vcBytes), conf), nil
 }
 
 func parceVcData(dataStr string, conf *config.Config) (result []*VoiceCallData) {

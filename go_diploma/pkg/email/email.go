@@ -20,15 +20,15 @@ func (email *EmailData) ToString() string {
 		email.Country, email.Provider, email.DeliveryTime)
 }
 
-func LoadData(conf *config.Config) []*EmailData {
+func LoadData(conf *config.Config) ([]*EmailData, error) {
 	emailDataBytes, err := os.ReadFile(conf.GetEmuPath() + conf.GetEmailDataFile())
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	if len(emailDataBytes) == 0 {
-		fmt.Println("Email data file is empty!")
+		return nil, fmt.Errorf("email data file is empty")
 	}
-	return parceEmailData(string(emailDataBytes), conf)
+	return parceEmailData(string(emailDataBytes), conf), nil
 }
 
 func parceEmailData(dataStr string, conf *config.Config) (result []*EmailData) {

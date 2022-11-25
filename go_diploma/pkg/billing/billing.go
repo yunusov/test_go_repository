@@ -23,15 +23,15 @@ func (bd *BillingData) ToString() string {
 		bd.CreateCustomer, bd.Purchase, bd.Payout, bd.Recurring, bd.FraudControl, bd.CheckoutPage)
 }
 
-func LoadData(conf *config.Config) *BillingData {
+func LoadData(conf *config.Config) (*BillingData, error) {
 	emailDataBytes, err := os.ReadFile(conf.GetEmuPath() + conf.GetBillingDataFile())
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	if len(emailDataBytes) == 0 {
-		fmt.Println("Billing data file is empty!")
+		return nil, fmt.Errorf("billing data file is empty")
 	}
-	return parceBillingData(emailDataBytes)
+	return parceBillingData(emailDataBytes), nil
 }
 
 func parceBillingData(dataBytes []byte) *BillingData {
