@@ -21,6 +21,7 @@ curl: **curl http://127.0.0.1:8585/test**
 #### Примеры ответов:
 
 ##### Сбой:
+```json
 {
 	"status": false,
 	"data": {
@@ -41,8 +42,10 @@ curl: **curl http://127.0.0.1:8585/test**
 	},
 	"error": "open C:/Users/yunusov/go/skillbox-diploma/sms.data1: The system cannot find the file specified."
 }
+```
 
 ##### Успешно:
+```json
 {
 	"status": true,
 	"data": {
@@ -247,3 +250,4 @@ curl: **curl http://127.0.0.1:8585/test**
 	},
 	"error": ""
 }
+```
